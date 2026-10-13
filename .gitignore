@@ -1,0 +1,18 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Generated reports and screenshots
+reports/
+screenshots/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Keep example configuration files
+!.env.example
