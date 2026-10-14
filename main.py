@@ -333,7 +333,7 @@ def main():
         )
 
         print(
-            "✓ Excel report generated:"
+            "✓ Excel report generated successfully:"
         )
 
         print(
