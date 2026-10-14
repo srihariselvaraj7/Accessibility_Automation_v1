@@ -34,3 +34,6 @@ jobs:
 
       - name: Check Git whitespace errors
         run: git diff --check
+      
+      - name: Build Docker image
+        run: docker build -t accessibility-automation .
