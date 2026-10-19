@@ -1,3 +1,5 @@
+import os
+
 from playwright.sync_api import sync_playwright
 
 from scanners.heading_scanner import scan_headings
@@ -12,343 +14,369 @@ from utils.excel_report import generate_excel_report
 
 def main():
 
-    url = input("Enter page URL: ")
+    # ========================================
+    # CONFIGURATION
+    # ========================================
+
+    # Use SCAN_URL when provided; otherwise ask for the URL.
+    url = os.getenv("SCAN_URL") or input("Enter page URL: ").strip()
+
+    if not url:
+        print("Error: Please provide a valid page URL.")
+        return
+
+    # Headless mode is configurable through an environment variable.
+    headless = (
+        os.getenv("PLAYWRIGHT_HEADLESS", "false").lower()
+        == "true"
+    )
 
     with sync_playwright() as p:
 
-        browser = p.chromium.launch(
-            channel="chrome",
-            headless=False
-        )
-
-        page = browser.new_page()
-
         # ========================================
-        # HEADER
+        # LAUNCH BROWSER
         # ========================================
 
-        print()
-        print("=" * 40)
-        print("       ACCESSIBILITY TESTING TOOL")
-        print("=" * 40)
+        launch_options = {
+            "headless": headless
+        }
 
-        print()
-        print(f"Page URL : {url}")
+        # Use installed Google Chrome for local visible execution.
+        # Use Playwright's bundled Chromium in headless mode.
+        if not headless:
+            launch_options["channel"] = "chrome"
 
-        # ========================================
-        # OPEN PAGE
-        # ========================================
+        browser = p.chromium.launch(**launch_options)
 
-        page.goto(
-            url,
-            wait_until="domcontentloaded"
-        )
+        try:
 
-        print(
-            f"Title    : {page.title()}"
-        )
+            page = browser.new_page()
 
-        print()
-        print("Page opened successfully.")
+            # ========================================
+            # HEADER
+            # ========================================
 
-        # ========================================
-        # START SCAN
-        # ========================================
+            print()
+            print("=" * 40)
+            print("       ACCESSIBILITY TESTING TOOL")
+            print("=" * 40)
 
-        print()
-        print("Starting accessibility scan...")
-        print()
+            print()
+            print(f"Page URL : {url}")
+            print(
+                f"Browser mode : "
+                f"{'Headless' if headless else 'Visible'}"
+            )
 
-        # ========================================
-        # HEADING SCAN
-        # ========================================
+            # ========================================
+            # OPEN PAGE
+            # ========================================
 
-        print("Scanning headings...")
+            print()
+            print("Opening page...")
 
-        heading_result = scan_headings(page)
+            page.goto(
+                url,
+                wait_until="domcontentloaded"
+            )
 
-        # ========================================
-        # IMAGE SCAN
-        # ========================================
+            print(f"Title    : {page.title()}")
 
-        print("Scanning images...")
+            print()
+            print("Page opened successfully.")
 
-        image_result = scan_images(page)
+            # ========================================
+            # START SCAN
+            # ========================================
 
-        # ========================================
-        # BUTTON SCAN
-        # ========================================
+            print()
+            print("=" * 40)
+            print("       STARTING ACCESSIBILITY SCAN")
+            print("=" * 40)
+            print()
 
-        print("Scanning buttons...")
+            # ========================================
+            # HEADING SCAN
+            # ========================================
 
-        button_result = scan_buttons(page)
+            print("Scanning headings...")
 
-        # ========================================
-        # LINK SCAN
-        # ========================================
+            heading_result = scan_headings(page)
 
-        print("Scanning links...")
+            # ========================================
+            # IMAGE SCAN
+            # ========================================
 
-        link_result = scan_links(page)
+            print("Scanning images...")
 
-        # ========================================
-        # CONTRAST SCAN
-        # ========================================
+            image_result = scan_images(page)
 
-        print("Scanning color contrast...")
+            # ========================================
+            # BUTTON SCAN
+            # ========================================
 
-        contrast_result = scan_contrast(page)
+            print("Scanning buttons...")
 
-        # ========================================
-        # COMBINE ISSUES
-        # ========================================
+            button_result = scan_buttons(page)
 
-        all_issues = (
-            heading_result.issues
-            + image_result.issues
-            + button_result.issues
-            + link_result.issues
-            + contrast_result.issues
-        )
+            # ========================================
+            # LINK SCAN
+            # ========================================
 
-        # ========================================
-        # SCAN SUMMARY
-        # ========================================
+            print("Scanning links...")
 
-        print()
-        print("=" * 40)
-        print("           SCAN SUMMARY")
-        print("=" * 40)
-        print()
+            link_result = scan_links(page)
 
-        print(
-            f"{'':<20}"
-            f"{'Total':>8}"
-            f"{'Passed':>10}"
-            f"{'Failed':>10}"
-        )
+            # ========================================
+            # COLOR CONTRAST SCAN
+            # ========================================
 
-        print("-" * 48)
+            print("Scanning color contrast...")
 
-        heading_failed = (
-            heading_result.checked
-            - heading_result.passed
-        )
+            contrast_result = scan_contrast(page)
 
-        image_failed = (
-            image_result.checked
-            - image_result.passed
-        )
+            # ========================================
+            # COMBINE ISSUES
+            # ========================================
 
-        button_failed = (
-            button_result.checked
-            - button_result.passed
-        )
+            all_issues = (
+                heading_result.issues
+                + image_result.issues
+                + button_result.issues
+                + link_result.issues
+                + contrast_result.issues
+            )
 
-        link_failed = (
-            link_result.checked
-            - link_result.passed
-        )
+            # ========================================
+            # SCAN SUMMARY
+            # ========================================
 
-        contrast_failed = (
-            contrast_result.checked
-            - contrast_result.passed
-        )
+            print()
+            print("=" * 48)
+            print("                  SCAN SUMMARY")
+            print("=" * 48)
+            print()
 
-        # ----------------------------------------
-        # Individual scanner results
-        # ----------------------------------------
+            print(
+                f"{'Category':<20}"
+                f"{'Total':>8}"
+                f"{'Passed':>10}"
+                f"{'Failed':>10}"
+            )
 
-        print(
-            f"{'Headings':<20}"
-            f"{heading_result.checked:>8}"
-            f"{heading_result.passed:>10}"
-            f"{heading_failed:>10}"
-        )
+            print("-" * 48)
 
-        print(
-            f"{'Images':<20}"
-            f"{image_result.checked:>8}"
-            f"{image_result.passed:>10}"
-            f"{image_failed:>10}"
-        )
+            # Individual scanner failures
+            heading_failed = (
+                heading_result.checked
+                - heading_result.passed
+            )
 
-        print(
-            f"{'Buttons':<20}"
-            f"{button_result.checked:>8}"
-            f"{button_result.passed:>10}"
-            f"{button_failed:>10}"
-        )
+            image_failed = (
+                image_result.checked
+                - image_result.passed
+            )
 
-        print(
-            f"{'Links':<20}"
-            f"{link_result.checked:>8}"
-            f"{link_result.passed:>10}"
-            f"{link_failed:>10}"
-        )
+            button_failed = (
+                button_result.checked
+                - button_result.passed
+            )
 
-        print(
-            f"{'Color Contrast':<20}"
-            f"{contrast_result.checked:>8}"
-            f"{contrast_result.passed:>10}"
-            f"{contrast_failed:>10}"
-        )
+            link_failed = (
+                link_result.checked
+                - link_result.passed
+            )
 
-        # ----------------------------------------
-        # Overall totals
-        # ----------------------------------------
+            contrast_failed = (
+                contrast_result.checked
+                - contrast_result.passed
+            )
 
-        total_checked = (
-            heading_result.checked
-            + image_result.checked
-            + button_result.checked
-            + link_result.checked
-            + contrast_result.checked
-        )
+            # Display individual scanner results
+            print(
+                f"{'Headings':<20}"
+                f"{heading_result.checked:>8}"
+                f"{heading_result.passed:>10}"
+                f"{heading_failed:>10}"
+            )
 
-        total_passed = (
-            heading_result.passed
-            + image_result.passed
-            + button_result.passed
-            + link_result.passed
-            + contrast_result.passed
-        )
+            print(
+                f"{'Images':<20}"
+                f"{image_result.checked:>8}"
+                f"{image_result.passed:>10}"
+                f"{image_failed:>10}"
+            )
 
-        total_failed = (
-            total_checked
-            - total_passed
-        )
+            print(
+                f"{'Buttons':<20}"
+                f"{button_result.checked:>8}"
+                f"{button_result.passed:>10}"
+                f"{button_failed:>10}"
+            )
 
-        print("-" * 48)
+            print(
+                f"{'Links':<20}"
+                f"{link_result.checked:>8}"
+                f"{link_result.passed:>10}"
+                f"{link_failed:>10}"
+            )
 
-        print(
-            f"{'TOTAL':<20}"
-            f"{total_checked:>8}"
-            f"{total_passed:>10}"
-            f"{total_failed:>10}"
-        )
+            print(
+                f"{'Color Contrast':<20}"
+                f"{contrast_result.checked:>8}"
+                f"{contrast_result.passed:>10}"
+                f"{contrast_failed:>10}"
+            )
 
-        print()
-        print(
-            f"Accessibility Issues Found: "
-            f"{len(all_issues)}"
-        )
+            # ========================================
+            # OVERALL TOTALS
+            # ========================================
 
-        # ========================================
-        # SCREENSHOTS
-        # ========================================
+            total_checked = (
+                heading_result.checked
+                + image_result.checked
+                + button_result.checked
+                + link_result.checked
+                + contrast_result.checked
+            )
 
-        print()
-        print("=" * 40)
-        print("        SCREENSHOTS")
-        print("=" * 40)
-        print()
+            total_passed = (
+                heading_result.passed
+                + image_result.passed
+                + button_result.passed
+                + link_result.passed
+                + contrast_result.passed
+            )
 
-        screenshot_index = 1
+            total_failed = total_checked - total_passed
 
-        for issue in all_issues:
+            print("-" * 48)
 
-            try:
+            print(
+                f"{'TOTAL':<20}"
+                f"{total_checked:>8}"
+                f"{total_passed:>10}"
+                f"{total_failed:>10}"
+            )
 
-                screenshot_path = take_element_screenshot(
-                    issue,
-                    screenshot_index
-                )
+            print()
+            print(
+                f"Accessibility Issues Found: "
+                f"{len(all_issues)}"
+            )
 
-                issue.screenshot = screenshot_path
+            # ========================================
+            # SCREENSHOTS
+            # ========================================
 
-                if screenshot_path:
+            print()
+            print("=" * 40)
+            print("             SCREENSHOTS")
+            print("=" * 40)
+            print()
 
+            screenshot_index = 1
+
+            for issue in all_issues:
+
+                try:
+
+                    screenshot_path = take_element_screenshot(
+                        issue,
+                        screenshot_index
+                    )
+
+                    issue.screenshot = screenshot_path
+
+                    if screenshot_path:
+
+                        print("✓ Screenshot captured")
+                        print(
+                            f"  Issue: "
+                            f"{getattr(issue, 'issue_type', 'Accessibility issue')}"
+                        )
+                        print(
+                            f"  XPath: "
+                            f"{getattr(issue, 'xpath', 'Not available')}"
+                        )
+
+                    else:
+
+                        print("⚠ Screenshot not captured")
+                        print(
+                            f"  Issue: "
+                            f"{getattr(issue, 'issue_type', 'Accessibility issue')}"
+                        )
+                        print(
+                            f"  XPath: "
+                            f"{getattr(issue, 'xpath', 'Not available')}"
+                        )
+
+                except Exception as e:
+
+                    issue.screenshot = None
+
+                    if hasattr(issue, "screenshot_status"):
+                        issue.screenshot_status = (
+                            f"Screenshot failed: {e}"
+                        )
+
+                    print("⚠ Screenshot not captured")
                     print(
-                        "✓ Screenshot captured"
+                        f"  Issue: "
+                        f"{getattr(issue, 'issue_type', 'Accessibility issue')}"
                     )
-
                     print(
-                        f"  Issue: {issue.issue_type}"
+                        f"  XPath: "
+                        f"{getattr(issue, 'xpath', 'Not available')}"
                     )
+                    print(f"  Reason: {e}")
 
-                    print(
-                        f"  XPath: {issue.xpath}"
-                    )
+                screenshot_index += 1
 
-                else:
+            # ========================================
+            # EXCEL REPORT
+            # ========================================
 
-                    print(
-                        "⚠ Screenshot not captured"
-                    )
+            print()
+            print("=" * 40)
+            print("              EXCEL REPORT")
+            print("=" * 40)
+            print()
 
-                    print(
-                        f"  Issue: {issue.issue_type}"
-                    )
+            report_path = generate_excel_report(
+                page.url,
+                all_issues,
+                heading_result,
+                image_result,
+                button_result,
+                link_result,
+                contrast_result
+            )
 
-                    print(
-                        f"  XPath: {issue.xpath}"
-                    )
+            print("✓ Excel report generated successfully:")
+            print(f"  {report_path}")
 
-            except Exception as e:
+            # ========================================
+            # COMPLETION SUMMARY
+            # ========================================
 
-                issue.screenshot = None
+            print()
+            print("=" * 40)
+            print("             SCAN COMPLETED")
+            print("=" * 40)
 
-                if hasattr(
-                    issue,
-                    "screenshot_status"
-                ):
+            print(f"Total checked : {total_checked}")
+            print(f"Total passed  : {total_passed}")
+            print(f"Total failed  : {total_failed}")
+            print(f"Issues found  : {len(all_issues)}")
 
-                    issue.screenshot_status = (
-                        f"Screenshot failed: {e}"
-                    )
+            # Only wait for Enter when using a visible browser.
+            if not headless:
+                input("\nPress Enter to close browser...")
 
-                print(
-                    "⚠ Screenshot not captured"
-                )
-
-                print(
-                    f"  Issue: {issue.issue_type}"
-                )
-
-                print(
-                    f"  XPath: {issue.xpath}"
-                )
-
-            screenshot_index += 1
-
-        # ========================================
-        # EXCEL REPORT
-        # ========================================
-
-        print()
-        print("=" * 40)
-        print("        EXCEL REPORT")
-        print("=" * 40)
-        print()
-
-        report_path = generate_excel_report(
-            page.url,
-            all_issues,
-            heading_result,
-            image_result,
-            button_result,
-            link_result,
-            contrast_result
-        )
-
-        print(
-            "✓ Excel report generated successfully:"
-        )
-
-        print(
-            f"  {report_path}"
-        )
-
-        # ========================================
-        # KEEP BROWSER OPEN
-        # ========================================
-
-        input(
-            "\nPress Enter to close browser..."
-        )
-
-        browser.close()
+        finally:
+            browser.close()
 
 
 if __name__ == "__main__":
