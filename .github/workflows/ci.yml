@@ -38,14 +38,14 @@ jobs:
 
       - name: Check Git whitespace errors
         run: git diff --check
-      
+
       - name: Set image name
         id: image
         run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - name: Build Docker image
         run: docker build -t "${{ steps.image.outputs.name }}:latest" .
-      
+
       - name: Smoke test Docker image
         run: |
           docker run --rm \
@@ -53,6 +53,19 @@ jobs:
             "${{ steps.image.outputs.name }}:latest" \
             -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); browser = p.chromium.launch(headless=True); page = browser.new_page(); page.set_content('<title>Smoke Test</title>'); assert page.title() == 'Smoke Test'; print('Docker smoke test passed: Chromium launched and rendered local HTML'); browser.close(); p.stop()"
 
+      - name: Integration test accessibility scanner
+        run: |
+          mkdir -p reports
+
+          docker run --rm \
+            -e SCAN_URL="file:///app/tests/fixtures/accessibility_smoke_test.html" \
+            -e PLAYWRIGHT_HEADLESS=true \
+            -v "$PWD/reports:/app/reports" \
+            "${{ steps.image.outputs.name }}:latest"
+
+          test -s reports/accessibility_report.xlsx
+
+          echo "Integration test passed: Excel report exists and is not empty."
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

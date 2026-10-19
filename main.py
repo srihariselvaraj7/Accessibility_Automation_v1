@@ -1,4 +1,6 @@
+
 import os
+from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
@@ -19,11 +21,14 @@ def main():
     # ========================================
 
     # Use SCAN_URL when provided; otherwise ask for the URL.
-    url = os.getenv("SCAN_URL") or input("Enter page URL: ").strip()
+    url = os.getenv("SCAN_URL") or input(
+        "Enter page URL: "
+    ).strip()
 
     if not url:
-        print("Error: Please provide a valid page URL.")
-        return
+        raise SystemExit(
+            "Error: Please provide a valid page URL."
+        )
 
     # Headless mode is configurable through an environment variable.
     headless = (
@@ -100,7 +105,6 @@ def main():
             # ========================================
 
             print("Scanning headings...")
-
             heading_result = scan_headings(page)
 
             # ========================================
@@ -108,7 +112,6 @@ def main():
             # ========================================
 
             print("Scanning images...")
-
             image_result = scan_images(page)
 
             # ========================================
@@ -116,7 +119,6 @@ def main():
             # ========================================
 
             print("Scanning buttons...")
-
             button_result = scan_buttons(page)
 
             # ========================================
@@ -124,7 +126,6 @@ def main():
             # ========================================
 
             print("Scanning links...")
-
             link_result = scan_links(page)
 
             # ========================================
@@ -132,7 +133,6 @@ def main():
             # ========================================
 
             print("Scanning color contrast...")
-
             contrast_result = scan_contrast(page)
 
             # ========================================
@@ -166,33 +166,22 @@ def main():
 
             print("-" * 48)
 
-            # Individual scanner failures
             heading_failed = (
-                heading_result.checked
-                - heading_result.passed
+                heading_result.checked - heading_result.passed
             )
-
             image_failed = (
-                image_result.checked
-                - image_result.passed
+                image_result.checked - image_result.passed
             )
-
             button_failed = (
-                button_result.checked
-                - button_result.passed
+                button_result.checked - button_result.passed
             )
-
             link_failed = (
-                link_result.checked
-                - link_result.passed
+                link_result.checked - link_result.passed
             )
-
             contrast_failed = (
-                contrast_result.checked
-                - contrast_result.passed
+                contrast_result.checked - contrast_result.passed
             )
 
-            # Display individual scanner results
             print(
                 f"{'Headings':<20}"
                 f"{heading_result.checked:>8}"
@@ -261,8 +250,7 @@ def main():
 
             print()
             print(
-                f"Accessibility Issues Found: "
-                f"{len(all_issues)}"
+                f"Accessibility Issues Found: {len(all_issues)}"
             )
 
             # ========================================
@@ -280,7 +268,6 @@ def main():
             for issue in all_issues:
 
                 try:
-
                     screenshot_path = take_element_screenshot(
                         issue,
                         screenshot_index
@@ -289,7 +276,6 @@ def main():
                     issue.screenshot = screenshot_path
 
                     if screenshot_path:
-
                         print("✓ Screenshot captured")
                         print(
                             f"  Issue: "
@@ -299,9 +285,7 @@ def main():
                             f"  XPath: "
                             f"{getattr(issue, 'xpath', 'Not available')}"
                         )
-
                     else:
-
                         print("⚠ Screenshot not captured")
                         print(
                             f"  Issue: "
@@ -313,7 +297,6 @@ def main():
                         )
 
                 except Exception as e:
-
                     issue.screenshot = None
 
                     if hasattr(issue, "screenshot_status"):
@@ -354,8 +337,24 @@ def main():
                 contrast_result
             )
 
-            print("✓ Excel report generated successfully:")
-            print(f"  {report_path}")
+            # ========================================
+            # VERIFY REPORT GENERATION
+            # ========================================
+
+            if not report_path:
+                raise RuntimeError(
+                    "Excel report generation returned no file path."
+                )
+
+            report_file = Path(report_path)
+
+            if not report_file.is_file():
+                raise FileNotFoundError(
+                    f"Excel report was not found: {report_file}"
+                )
+
+            print("✓ Excel report generated and verified:")
+            print(f"  {report_file.resolve()}")
 
             # ========================================
             # COMPLETION SUMMARY
