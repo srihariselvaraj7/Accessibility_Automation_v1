@@ -45,6 +45,14 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t "${{ steps.image.outputs.name }}:latest" .
+      
+      - name: Smoke test Docker image
+        run: |
+          docker run --rm \
+            --entrypoint python \
+            "${{ steps.image.outputs.name }}:latest" \
+            -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); browser = p.chromium.launch(headless=True); page = browser.new_page(); page.set_content('<title>Smoke Test</title>'); assert page.title() == 'Smoke Test'; print('Docker smoke test passed: Chromium launched and rendered local HTML'); browser.close(); p.stop()"
+
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
